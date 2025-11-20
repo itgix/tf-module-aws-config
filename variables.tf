@@ -1,40 +1,29 @@
-// TODO: outline to be refactored as we start implementation
-
-variable "admin" {
-  description = "Set to true for delegated admin account (Security account)"
+variable "is_security_account" {
+  description = "Set to true when running in the Security/Delegated Admin Account"
   type        = bool
   default     = false
 }
 
-variable "organization_id" {
-  description = "AWS Organization ID (e.g., o-xxxxxx)"
-  type        = string
-}
-
-variable "security_account_id" {
-  description = "Account ID of the delegated admin (Security account)"
-  type        = string
-}
-
-variable "central_bucket_name" {
-  description = "S3 bucket name for centralized Config data (in Logging/Audit account)"
-  type        = string
+variable "is_logging_account" {
+  description = "Set to true in central logging account (creates S3 buckets)"
+  type        = bool
+  default     = false
 }
 
 variable "sns_topic_arn" {
-  description = "SNS topic ARN for Config notifications (optional)"
+  description = "SNS topic ARN for Config delivery notifications"
   type        = string
-  default     = null
+  default     = ""
 }
 
-variable "region" {
-  description = "AWS region to deploy Config in"
-  type        = string
-  default     = "us-east-1"
+variable "conformance_packs" {
+  type    = map(object({ template_s3_uri = string }))
+  default = {}
 }
 
 variable "tags" {
-  description = "Common tags to apply"
-  type        = map(string)
-  default     = {}
+  type = map(string)
+  default = {
+    Name = "itgix-landing-zone"
+  }
 }
