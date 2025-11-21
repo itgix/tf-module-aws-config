@@ -12,6 +12,14 @@ resource "aws_config_configuration_recorder" "member" {
   depends_on = [aws_iam_role_policy_attachment.config_policy_attach]
 }
 
+resource "aws_config_configuration_recorder_status" "member" {
+  count      = var.is_security_account ? 0 : 1
+  name       = local.recorder_name
+  is_enabled = true
+
+  depends_on = [aws_config_delivery_channel.member]
+}
+
 resource "aws_config_delivery_channel" "member" {
   count          = var.is_security_account ? 0 : 1
   name           = local.delivery_name
@@ -22,10 +30,3 @@ resource "aws_config_delivery_channel" "member" {
   depends_on = [aws_config_configuration_recorder.member]
 }
 
-resource "aws_config_configuration_recorder_status" "member" {
-  count      = var.is_security_account ? 0 : 1
-  name       = local.recorder_name
-  is_enabled = true
-
-  depends_on = [aws_config_delivery_channel.member]
-}
