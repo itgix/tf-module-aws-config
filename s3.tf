@@ -27,8 +27,8 @@ resource "aws_s3_bucket_policy" "aws_config_aggregation" {
         Principal = { Service = "config.amazonaws.com" }
         Action    = ["s3:PutObject", "s3:GetBucketAcl", "s3:ListBucket"]
         Resource = [
-          aws_s3_bucket.central[0].arn,
-          "${aws_s3_bucket.central[0].arn}/*"
+          aws_s3_bucket.aws_config_aggregation[0].arn,
+          "${aws_s3_bucket.aws_config_aggregation[0].arn}/*"
         ]
       }
     ]
