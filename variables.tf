@@ -16,11 +16,6 @@ variable "sns_topic_arn" {
   default     = ""
 }
 
-variable "conformance_packs" {
-  type    = map(object({ template_s3_uri = string }))
-  default = {}
-}
-
 variable "tags" {
   type = map(string)
   default = {
