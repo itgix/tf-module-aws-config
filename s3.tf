@@ -3,16 +3,22 @@ resource "aws_s3_bucket" "aws_config_aggregation" {
   count  = var.is_logging_account ? 1 : 0
   bucket = local.central_bucket_name
 
-  lifecycle_rule {
-    id      = "config-lifecycle"
-    enabled = true
+  tags = var.tags
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "aws_config_aggregation" {
+  count = var.is_logging_account ? 1 : 0
+
+  bucket = aws_s3_bucket.aws_config_aggregation[count.index].id
+
+  rule {
+    id     = "config-lifecycle"
+    status = "Enabled"
 
     noncurrent_version_expiration {
-      days = 30
+      noncurrent_days = 30
     }
   }
-
-  tags = var.tags
 }
 
 resource "aws_s3_bucket_policy" "aws_config_aggregation" {
