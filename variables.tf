@@ -23,8 +23,9 @@ variable "create_sns_topic" {
 }
 
 variable "aws_config_central_bucket_name" {
-  description = "Name of the S3 bucket that will store AWS Config aggregation history files"
+  description = "Name of the S3 bucket that will store AWS Config aggregation history files (has to be a unique name globally in AWS)"
   type        = string
+  default     = "itgix-landing-zone-aws-config-history"
 }
 
 variable "tags" {
