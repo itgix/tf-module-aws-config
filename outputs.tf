@@ -12,5 +12,5 @@ output "central_bucket_name_out" {
 
 output "config_sns_topic_arn" {
   description = "ARN of the SNS topic used for Config notifications"
-  value       = var.sns_topic_arn != null ? var.sns_topic_arn : (var.create_sns_topic ? aws_sns_topic.config_notifications[0].arn : null)
+  value       = var.sns_topic_arn != null ? var.sns_topic_arn : (var.is_security_account && var.create_sns_topic ? aws_sns_topic.config_notifications[0].arn : null)
 }
