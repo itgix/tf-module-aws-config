@@ -11,8 +11,15 @@ variable "is_logging_account" {
 }
 
 variable "sns_topic_arn" {
-  description = "SNS topic ARN for Config delivery notifications"
+  description = "Existing SNS topic ARN for Config delivery notifications. If not provided, a new SNS topic will be created."
   type        = string
+  default     = null
+}
+
+variable "create_sns_topic" {
+  description = "Whether to create a new SNS topic for Config notifications"
+  type        = bool
+  default     = true
 }
 
 variable "aws_config_central_bucket_name" {

@@ -5,4 +5,5 @@ locals {
   aggregator_name      = "${local.module_prefix}-aggregator"
   config_role_name     = "${local.module_prefix}-config-role"
   aggregator_role_name = "${local.module_prefix}-aggregator-role"
+  sns_topic_name       = "${local.module_prefix}-config-notifications"
 }

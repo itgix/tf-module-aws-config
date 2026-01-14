@@ -24,9 +24,8 @@ resource "aws_config_delivery_channel" "member" {
   count          = var.is_security_account ? 0 : 1
   name           = local.delivery_name
   s3_bucket_name = var.aws_config_central_bucket_name
-  // TODO: create one in the module and provide option to just paass an existing one's ARN
-  sns_topic_arn = var.sns_topic_arn == "" ? null : var.sns_topic_arn
+  // if no SNS topic ARN is passed, the module will create one and use it
+  sns_topic_arn = var.sns_topic_arn != null ? var.sns_topic_arn : (var.create_sns_topic ? aws_sns_topic.config_notifications[0].arn : null)
 
   depends_on = [aws_config_configuration_recorder.member]
 }
-
