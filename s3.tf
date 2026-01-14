@@ -1,7 +1,7 @@
 # S3 Bucket (Logging Account) - stored AWS Config aggregated files
 resource "aws_s3_bucket" "aws_config_aggregation" {
   count  = var.is_logging_account ? 1 : 0
-  bucket = local.central_bucket_name
+  bucket = var.aws_config_central_bucket_name
 
   tags = var.tags
 }

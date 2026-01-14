@@ -7,5 +7,5 @@ output "aggregator_role_arn" {
 }
 
 output "central_bucket_name_out" {
-  value = var.is_logging_account ? local.central_bucket_name : null
+  value = var.is_logging_account ? var.aws_config_central_bucket_name : null
 }

@@ -13,7 +13,11 @@ variable "is_logging_account" {
 variable "sns_topic_arn" {
   description = "SNS topic ARN for Config delivery notifications"
   type        = string
-  default     = ""
+}
+
+variable "aws_config_central_bucket_name" {
+  description = "Name of the S3 bucket that will store AWS Config aggregation history files"
+  type        = string
 }
 
 variable "tags" {

@@ -23,7 +23,7 @@ resource "aws_config_configuration_recorder_status" "member" {
 resource "aws_config_delivery_channel" "member" {
   count          = var.is_security_account ? 0 : 1
   name           = local.delivery_name
-  s3_bucket_name = local.central_bucket_name
+  s3_bucket_name = var.aws_config_central_bucket_name
   // TODO: create one in the module and provide option to just paass an existing one's ARN
   sns_topic_arn = var.sns_topic_arn == "" ? null : var.sns_topic_arn
 
