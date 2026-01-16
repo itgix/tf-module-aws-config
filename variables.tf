@@ -28,6 +28,12 @@ variable "aws_config_central_bucket_name" {
   default     = "itgix-landing-zone-aws-config-history"
 }
 
+variable "cloudwatch_log_retention_remediation" {
+  description = "Enable org-wide CloudWatch Log Group retention enforcement and remediation"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   type = map(string)
   default = {
