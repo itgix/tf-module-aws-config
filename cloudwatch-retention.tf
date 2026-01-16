@@ -38,10 +38,11 @@ resource "aws_iam_role_policy" "config_remediation_policy" {
 
 // Check if there are log groups that have never expire
 resource "aws_config_organization_managed_rule" "cw_log_retention_check" {
-  count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-
+  count           = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
   name            = "cloudwatch-log-group-retention-check"
   rule_identifier = "CLOUDWATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
+
+  description = "Ensure CloudWatch Log Groups do not use Never Expire retention"
 
   input_parameters = jsonencode({
     MinRetentionTime = 1
@@ -49,6 +50,8 @@ resource "aws_config_organization_managed_rule" "cw_log_retention_check" {
 }
 
 // Automatically set expiration on any log group that is set to never expire
+// TODO: seems this kind of resource doesn't exist and we will have to do this in each account individually
+// maybe just add a conditional and call the same module in all accounts like we do with other modules
 resource "aws_config_organization_remediation_configuration" "cw_log_retention_remediation" {
   count     = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
   rule_name = aws_config_organization_managed_rule.cw_log_retention_check[0].name
