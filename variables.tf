@@ -53,3 +53,8 @@ variable "management_account_id" {
   type        = string
   description = "ID of the Organization management account, required for organization wide AWS config rules "
 }
+
+variable "region" {
+  type        = string
+  description = "AWS Region to be added to the Lambda permissions for the purposes of allowing AWS Config from the management account to trigger the Lambda"
+}
