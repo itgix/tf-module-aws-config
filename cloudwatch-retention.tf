@@ -38,14 +38,14 @@ resource "aws_iam_role_policy" "config_cw_retention_lambda_policy" {
 
 resource "aws_lambda_function" "cw_log_retention" {
   count         = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-  filename      = "lambda/cw_log_retention.zip" # zip must contain cw_log_retention.py
+  filename      = "${path.module}/lambda/cw_log_retention.zip" # zip must contain cw_log_retention.py
   function_name = "config-cw-log-retention-check"
   role          = aws_iam_role.config_cw_retention_lambda[0].arn
   handler       = "cw_log_retention.lambda_handler"
   runtime       = "python3.11"
   timeout       = 300
 
-  source_code_hash = filebase64sha256("lambda/cw_log_retention.zip")
+  source_code_hash = filebase64sha256("${path.module}/lambda/cw_log_retention.zip")
 }
 
 // Organization Custom Config Rule (AWS doesn't have a managed rule that is supported organization wide that stupports this check so we make a custom rule)
