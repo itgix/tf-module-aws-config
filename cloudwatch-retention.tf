@@ -115,7 +115,7 @@ resource "aws_iam_role_policy" "config_remediation_policy" {
 # Custom SSM Automation Document for setting CloudWatch Log Group retention
 resource "aws_ssm_document" "set_cloudwatch_log_retention" {
   count = var.cloudwatch_log_retention_remediation ? 1 : 0
-  name  = "AWSConfigRemediation-SetCloudWatchLogGroupRetention"
+  name  = "itgix-landing-zone-aws-config-cloudwatch-logs-remediation"
 
   document_type = "Automation"
 
