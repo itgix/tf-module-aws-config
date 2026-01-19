@@ -57,7 +57,7 @@ resource "aws_lambda_permission" "allow_config_org_invoke" {
   principal     = "config.amazonaws.com"
 
   # Required for organization rules
-  source_arn = "arn:aws:config:${var.region}:${var.management_account_id}:organization-config-rule/*"
+  source_arn = "arn:aws:config:${var.region}:${var.security_account_id}:organization-config-rule/*"
 }
 
 // Organization Custom Config Rule (AWS doesn't have a managed rule that is supported organization wide that stupports this check so we make a custom rule)
