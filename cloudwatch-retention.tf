@@ -67,9 +67,10 @@ resource "aws_config_remediation_configuration" "cw_log_retention" {
   }
 
   parameter {
-    name = "AutomationAssumeRole"
-    # static_value = "arn:aws:iam::${var.current_account_id}:role/AWSConfigRemediation-CloudWatchLogRetention"
-    static_value = aws_iam_role.config_remediation_role[0].arn
+    name         = "AutomationAssumeRole"
+    static_value = "arn:aws:iam::${var.current_account_id}:role/AWSConfigRemediation-CloudWatchLogRetention"
+    # TODO: update to be fetched dynamically
+    # static_value = aws_iam_role.config_remediation_role[0].arn
   }
 
   resource_type = "AWS::Logs::LogGroup"
