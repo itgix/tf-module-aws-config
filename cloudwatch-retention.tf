@@ -1,4 +1,4 @@
-// Lambda function to evaluate CloudWatch Log Group retention
+# IAM role to be assumed by the Lambda function for the purposes of checking cloudwatch log group retention
 resource "aws_iam_role" "config_cw_retention_lambda" {
   count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
   name  = "Config-CW-Log-Retention-Lambda"
@@ -36,6 +36,7 @@ resource "aws_iam_role_policy" "config_cw_retention_lambda_policy" {
   })
 }
 
+// Lambda function to evaluate CloudWatch Log Group retention
 resource "aws_lambda_function" "cw_log_retention" {
   count         = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
   filename      = "${path.module}/lambda/cw_log_retention.zip" # zip must contain cw_log_retention.py
