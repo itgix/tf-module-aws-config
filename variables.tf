@@ -48,3 +48,9 @@ variable "current_account_id" {
   type        = string
   description = "Account ID of the current account where the module is called from, used to configure auto-remediation of log groups in each account"
 }
+
+variable "cloudwatch_logs_default_retention" {
+  type        = string
+  default     = 365 // days
+  description = "How many days to of log retention to set by default on log groups that have been created with 'never expire' retention"
+}

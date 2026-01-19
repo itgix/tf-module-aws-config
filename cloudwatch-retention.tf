@@ -112,13 +112,49 @@ resource "aws_iam_role_policy" "config_remediation_policy" {
   })
 }
 
-// Automatic remediation of log groups that do not have a retention set
+# Custom SSM Automation Document for setting CloudWatch Log Group retention
+resource "aws_ssm_document" "set_cloudwatch_log_retention" {
+  count = var.cloudwatch_log_retention_remediation ? 1 : 0
+  name  = "AWSConfigRemediation-SetCloudWatchLogGroupRetention"
+
+  document_type = "Automation"
+
+  content = jsonencode({
+    schemaVersion = "0.3"
+    assumeRole    = "{{ AutomationAssumeRole }}"
+    parameters = {
+      LogGroupName = {
+        type = "String"
+      }
+      RetentionInDays = {
+        type = "String"
+      }
+      AutomationAssumeRole = {
+        type = "String"
+      }
+    }
+    mainSteps = [
+      {
+        name   = "SetRetentionPolicy"
+        action = "aws:executeAwsApi"
+        inputs = {
+          Service         = "logs"
+          Api             = "PutRetentionPolicy"
+          LogGroupName    = "{{ LogGroupName }}"
+          RetentionInDays = "{{ RetentionInDays }}"
+        }
+      }
+    ]
+  })
+}
+
+// Add AWS Config automatic remediation of log groups that do not have a retention set
 resource "aws_config_remediation_configuration" "cw_log_retention" {
   count            = var.cloudwatch_log_retention_remediation ? 1 : 0
   config_rule_name = aws_config_organization_custom_rule.cw_log_retention_check[0].name
 
   target_type = "SSM_DOCUMENT"
-  target_id   = "AWSConfigRemediation-SetCloudWatchLogGroupRetention"
+  target_id   = aws_ssm_document.set_cloudwatch_log_retention[0].name
 
   automatic                  = true
   maximum_automatic_attempts = 3
@@ -126,7 +162,7 @@ resource "aws_config_remediation_configuration" "cw_log_retention" {
 
   parameter {
     name         = "RetentionInDays"
-    static_value = "365"
+    static_value = var.cloudwatch_logs_default_retention // in days
   }
 
   parameter {
