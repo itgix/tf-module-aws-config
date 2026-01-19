@@ -48,3 +48,8 @@ variable "current_account_id" {
   type        = string
   description = "Account ID of the current account where the module is called from, used to configure auto-remediation of log groups in each account"
 }
+
+variable "management_account_id" {
+  type        = string
+  description = "ID of the Organization management account, required for organization wide AWS config rules "
+}

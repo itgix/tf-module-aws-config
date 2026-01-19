@@ -48,6 +48,18 @@ resource "aws_lambda_function" "cw_log_retention" {
   source_code_hash = filebase64sha256("${path.module}/lambda/cw_log_retention.zip")
 }
 
+resource "aws_lambda_permission" "allow_config_org_invoke" {
+  count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+
+  statement_id  = "AllowExecutionFromAWSConfigOrg"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cw_log_retention[0].function_name
+  principal     = "config.amazonaws.com"
+
+  # Required for organization rules
+  source_account = var.management_account_id
+}
+
 // Organization Custom Config Rule (AWS doesn't have a managed rule that is supported organization wide that stupports this check so we make a custom rule)
 resource "aws_config_organization_custom_rule" "cw_log_retention_check" {
   count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
