@@ -48,13 +48,3 @@ variable "current_account_id" {
   type        = string
   description = "Account ID of the current account where the module is called from, used to configure auto-remediation of log groups in each account"
 }
-
-variable "security_account_id" {
-  type        = string
-  description = "ID of the Organization management account, required for organization wide AWS config rules "
-}
-
-variable "region" {
-  type        = string
-  description = "AWS Region to be added to the Lambda permissions for the purposes of allowing AWS Config from the management account to trigger the Lambda"
-}
