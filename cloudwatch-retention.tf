@@ -1,106 +1,299 @@
-# IAM role to be assumed by the Lambda function for the purposes of checking cloudwatch log group retention
-resource "aws_iam_role" "config_cw_retention_lambda" {
-  count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-  name  = "Config-CW-Log-Retention-Lambda"
+# ============================================================================
+# CloudWatch Log Group Retention Auto-Remediation
+# ============================================================================
+# This file contains all resources needed for organization-wide CloudWatch
+# log group retention enforcement with automatic remediation.
+#
+# Resources created in Security Account (is_security_account = true):
+#   - AWS Config Organization Rule
+#   - SSM Automation Document
+#   - IAM Role for remediation
+#   - Config Remediation Configuration
+#
+# Resources created in Member Accounts (is_security_account = false):
+#   - IAM Role for cross-account remediation
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Variables
+# ----------------------------------------------------------------------------
+
+variable "enable_cloudwatch_retention_remediation" {
+  description = "Enable CloudWatch log group retention auto-remediation"
+  type        = bool
+  default     = false
+}
+
+variable "cloudwatch_retention_days" {
+  description = "Default retention period in days for CloudWatch log groups"
+  type        = number
+  default     = 365
+  validation {
+    condition = contains([
+      1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180,
+      365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653
+    ], var.cloudwatch_retention_days)
+    error_message = "Retention days must be a valid CloudWatch Logs retention period."
+  }
+}
+
+variable "security_account_id" {
+  description = "AWS Account ID of the security account (delegated admin for Config)"
+  type        = string
+  default     = ""
+}
+
+# ----------------------------------------------------------------------------
+# SECURITY ACCOUNT RESOURCES
+# ----------------------------------------------------------------------------
+
+# AWS Config Organization Rule
+resource "aws_config_organization_managed_rule" "cloudwatch_log_retention" {
+  count = var.is_security_account && var.enable_cloudwatch_retention_remediation ? 1 : 0
+
+  name        = "cloudwatch-log-group-retention-check"
+  description = "Checks that CloudWatch log groups have retention period set (not Never Expire)"
+
+  rule_identifier = "CW_LOGGROUP_RETENTION_PERIOD_CHECK"
+
+  # Apply to all accounts in the organization
+  excluded_accounts = []
+
+  depends_on = [aws_config_configuration_aggregator.org]
+}
+
+# SSM Automation Document for Remediation
+resource "aws_ssm_document" "cloudwatch_retention_remediation" {
+  count = var.is_security_account && var.enable_cloudwatch_retention_remediation ? 1 : 0
+
+  name            = "ConfigRemediation-SetCloudWatchLogGroupRetention"
+  document_type   = "Automation"
+  document_format = "YAML"
+
+  content = <<DOC
+schemaVersion: '0.3'
+description: |
+  ### Document Name - ConfigRemediation-SetCloudWatchLogGroupRetention
+  
+  ## What does this document do?
+  Sets the retention period for a CloudWatch Log Group to a specified number of days.
+  
+  ## Input Parameters
+  * AutomationAssumeRole: (Required) The ARN of the role that allows Automation to perform actions.
+  * LogGroupName: (Required) The name of the CloudWatch Log Group.
+  * RetentionInDays: (Required) The number of days to retain log events.
+  
+  ## Output Parameters
+  * SetLogGroupRetention.Output - Success message or failure exception.
+
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: (Required) The ARN of the role that allows Automation to perform actions.
+    allowedPattern: '^arn:aws[a-z0-9-]*:iam::\d{12}:role\/[\w-\/.@+=,]{1,1017}$$'
+  LogGroupName:
+    type: String
+    description: (Required) The name of the CloudWatch Log Group.
+    allowedPattern: '[\.\-_/#A-Za-z0-9]+'
+  RetentionInDays:
+    type: Integer
+    description: (Required) The number of days to retain log events.
+    default: ${var.cloudwatch_retention_days}
+    allowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1096
+      - 1827
+      - 2192
+      - 2557
+      - 2922
+      - 3288
+      - 3653
+
+mainSteps:
+  - name: SetLogGroupRetention
+    action: 'aws:executeAwsApi'
+    description: |
+      ## SetLogGroupRetention
+      Sets the retention period for the specified CloudWatch Log Group.
+      ## Outputs
+      * Output: Success message or failure exception.
+    timeoutSeconds: 600
+    isEnd: true
+    inputs:
+      Service: logs
+      Api: PutRetentionPolicy
+      logGroupName: '{{ LogGroupName }}'
+      retentionInDays: '{{ RetentionInDays }}'
+    outputs:
+      - Name: Output
+        Selector: $$.ResponseMetadata
+        Type: StringMap
+DOC
+
+  tags = var.tags
+}
+
+# IAM Role for Config Remediation (Security Account)
+resource "aws_iam_role" "config_remediation" {
+  count = var.is_security_account && var.enable_cloudwatch_retention_remediation ? 1 : 0
+
+  name        = "ConfigRemediation-CloudWatchLogRetention"
+  description = "Role for AWS Config to remediate CloudWatch log group retention"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect    = "Allow"
-        Principal = { Service = "lambda.amazonaws.com" }
-        Action    = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = [
+            "ssm.amazonaws.com",
+            "config.amazonaws.com"
+          ]
+        }
+        Action = "sts:AssumeRole"
       }
     ]
   })
+
+  tags = var.tags
 }
 
-resource "aws_iam_role_policy" "config_cw_retention_lambda_policy" {
-  count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-  role  = aws_iam_role.config_cw_retention_lambda[0].id
+# IAM Policy for Config Remediation Role (Security Account)
+resource "aws_iam_role_policy" "config_remediation" {
+  count = var.is_security_account && var.enable_cloudwatch_retention_remediation ? 1 : 0
+
+  name = "ConfigRemediationPolicy"
+  role = aws_iam_role.config_remediation[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["logs:DescribeLogGroups"]
+        Sid    = "CloudWatchLogsPermissions"
+        Effect = "Allow"
+        Action = [
+          "logs:PutRetentionPolicy",
+          "logs:DescribeLogGroups"
+        ]
         Resource = "*"
       },
       {
-        Effect   = "Allow"
-        Action   = ["config:PutEvaluations"]
+        Sid    = "AssumeRoleToMemberAccounts"
+        Effect = "Allow"
+        Action = [
+          "sts:AssumeRole"
+        ]
+        Resource = "arn:aws:iam::*:role/ConfigRemediation-CloudWatchLogRetention-Member"
+      },
+      {
+        Sid    = "SSMDocumentPermissions"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetDocument",
+          "ssm:DescribeDocument"
+        ]
         Resource = "*"
       }
     ]
   })
 }
 
-// Lambda function to evaluate CloudWatch Log Group retention
-resource "aws_lambda_function" "cw_log_retention" {
-  count         = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-  filename      = "${path.module}/lambda/cw_log_retention.zip" # zip must contain cw_log_retention.py
-  function_name = "config-cw-log-retention-check"
-  role          = aws_iam_role.config_cw_retention_lambda[0].arn
-  handler       = "cw_log_retention.lambda_handler"
-  runtime       = "python3.11"
-  timeout       = 300
+# Config Remediation Configuration
+resource "aws_config_remediation_configuration" "cloudwatch_retention" {
+  count = var.is_security_account && var.enable_cloudwatch_retention_remediation ? 1 : 0
 
-  source_code_hash = filebase64sha256("${path.module}/lambda/cw_log_retention.zip")
+  config_rule_name = aws_config_organization_managed_rule.cloudwatch_log_retention[0].name
+
+  target_type    = "SSM_DOCUMENT"
+  target_id      = aws_ssm_document.cloudwatch_retention_remediation[0].name
+  target_version = "$LATEST"
+
+  automatic                  = true
+  maximum_automatic_attempts = 5
+  retry_attempt_seconds      = 60
+
+  parameter {
+    name         = "AutomationAssumeRole"
+    static_value = aws_iam_role.config_remediation[0].arn
+  }
+
+  parameter {
+    name           = "LogGroupName"
+    resource_value = "RESOURCE_ID"
+  }
+
+  parameter {
+    name         = "RetentionInDays"
+    static_value = tostring(var.cloudwatch_retention_days)
+  }
+
+  depends_on = [
+    aws_config_organization_managed_rule.cloudwatch_log_retention,
+    aws_ssm_document.cloudwatch_retention_remediation,
+    aws_iam_role_policy.config_remediation
+  ]
 }
 
-resource "aws_lambda_permission" "allow_config_org_invoke" {
-  count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+# ----------------------------------------------------------------------------
+# MEMBER ACCOUNT RESOURCES
+# ----------------------------------------------------------------------------
 
-  statement_id  = "AllowExecutionFromAWSConfigOrg"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cw_log_retention[0].function_name
-  principal     = "config.amazonaws.com"
-}
+# IAM Role for Cross-Account Remediation (Member Accounts)
+resource "aws_iam_role" "config_remediation_member" {
+  count = !var.is_security_account && var.enable_cloudwatch_retention_remediation ? 1 : 0
 
-// Organization Custom Config Rule (AWS doesn't have a managed rule that is supported organization wide that stupports this check so we make a custom rule)
-resource "aws_config_organization_custom_rule" "cw_log_retention_check" {
-  count = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-  name  = "cloudwatch-log-group-retention-check"
-
-  lambda_function_arn = aws_lambda_function.cw_log_retention[0].arn
-
-  trigger_types = ["ConfigurationItemChangeNotification"]
-
-  resource_types_scope = ["AWS::Logs::LogGroup"]
-
-  input_parameters = jsonencode({
-    RetentionInDays = 365
-  })
-
-  description = "Ensure CloudWatch Log Groups do not use Never Expire retention"
-}
-
-# Role used for auto-remediation to update log groups 
-resource "aws_iam_role" "config_remediation_role" {
-  count = var.cloudwatch_log_retention_remediation ? 1 : 0
-  name  = "AWSConfigRemediation-CloudWatchLogRetention"
+  name        = "ConfigRemediation-CloudWatchLogRetention-Member"
+  description = "Allows security account to remediate CloudWatch log groups"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect    = "Allow"
-        Principal = { Service = "ssm.amazonaws.com" }
-        Action    = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.security_account_id}:role/ConfigRemediation-CloudWatchLogRetention"
+        }
+        Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "sts:ExternalId" = "config-remediation"
+          }
+        }
       }
     ]
   })
+
+  tags = var.tags
 }
 
-resource "aws_iam_role_policy" "config_remediation_policy" {
-  count = var.cloudwatch_log_retention_remediation ? 1 : 0
-  role  = aws_iam_role.config_remediation_role[0].id
+# IAM Policy for Member Account Role
+resource "aws_iam_role_policy" "config_remediation_member" {
+  count = !var.is_security_account && var.enable_cloudwatch_retention_remediation ? 1 : 0
+
+  name = "ConfigRemediationMemberPolicy"
+  role = aws_iam_role.config_remediation_member[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "CloudWatchLogsPermissions"
         Effect = "Allow"
         Action = [
           "logs:PutRetentionPolicy",
@@ -112,68 +305,18 @@ resource "aws_iam_role_policy" "config_remediation_policy" {
   })
 }
 
-# Custom SSM Automation Document for setting CloudWatch Log Group retention
-resource "aws_ssm_document" "set_cloudwatch_log_retention" {
-  count = var.cloudwatch_log_retention_remediation ? 1 : 0
-  name  = "itgix-landing-zone-aws-config-cloudwatch-logs-remediation"
+# ----------------------------------------------------------------------------
+# Outputs
+# ----------------------------------------------------------------------------
 
-  document_type = "Automation"
-
-  content = jsonencode({
-    schemaVersion = "0.3"
-    assumeRole    = "{{ AutomationAssumeRole }}"
-    parameters = {
-      LogGroupName = {
-        type = "String"
-      }
-      RetentionInDays = {
-        type = "String"
-      }
-      AutomationAssumeRole = {
-        type = "String"
-      }
-    }
-    mainSteps = [
-      {
-        name   = "SetRetentionPolicy"
-        action = "aws:executeAwsApi"
-        inputs = {
-          Service         = "logs"
-          Api             = "PutRetentionPolicy"
-          LogGroupName    = "{{ LogGroupName }}"
-          RetentionInDays = "{{ RetentionInDays }}"
-        }
-      }
-    ]
-  })
+output "config_rule_name" {
+  description = "Name of the Config rule for CloudWatch log retention"
+  value       = var.is_security_account && var.enable_cloudwatch_retention_remediation ? aws_config_organization_managed_rule.cloudwatch_log_retention[0].name : null
 }
 
-// Add AWS Config automatic remediation of log groups that do not have a retention set
-resource "aws_config_remediation_configuration" "cw_log_retention" {
-  count            = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-  config_rule_name = aws_config_organization_custom_rule.cw_log_retention_check[0].name
-
-  target_type = "SSM_DOCUMENT"
-  target_id   = aws_ssm_document.set_cloudwatch_log_retention[0].name
-
-  automatic                  = true
-  maximum_automatic_attempts = 3
-  retry_attempt_seconds      = 60
-
-  parameter {
-    name         = "RetentionInDays"
-    static_value = var.cloudwatch_logs_default_retention // in days
-  }
-
-  parameter {
-    name           = "LogGroupName"
-    resource_value = "RESOURCE_ID"
-  }
-
-  parameter {
-    name         = "AutomationAssumeRole"
-    static_value = "arn:aws:iam::${var.current_account_id}:role/AWSConfigRemediation-CloudWatchLogRetention"
-  }
-
-  resource_type = "AWS::Logs::LogGroup"
+output "remediation_role_arn" {
+  description = "ARN of the remediation role"
+  value = var.is_security_account && var.enable_cloudwatch_retention_remediation ? aws_iam_role.config_remediation[0].arn : (
+    !var.is_security_account && var.enable_cloudwatch_retention_remediation ? aws_iam_role.config_remediation_member[0].arn : null
+  )
 }
