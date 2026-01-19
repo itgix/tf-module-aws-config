@@ -150,7 +150,7 @@ resource "aws_ssm_document" "set_cloudwatch_log_retention" {
 
 // Add AWS Config automatic remediation of log groups that do not have a retention set
 resource "aws_config_remediation_configuration" "cw_log_retention" {
-  count            = var.cloudwatch_log_retention_remediation ? 1 : 0
+  count            = var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
   config_rule_name = aws_config_organization_custom_rule.cw_log_retention_check[0].name
 
   target_type = "SSM_DOCUMENT"
@@ -163,6 +163,11 @@ resource "aws_config_remediation_configuration" "cw_log_retention" {
   parameter {
     name         = "RetentionInDays"
     static_value = var.cloudwatch_logs_default_retention // in days
+  }
+
+  parameter {
+    name           = "LogGroupName"
+    resource_value = "RESOURCE_ID"
   }
 
   parameter {
