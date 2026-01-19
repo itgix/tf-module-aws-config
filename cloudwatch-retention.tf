@@ -11,7 +11,7 @@ resource "aws_config_organization_managed_rule" "cw_log_retention_check" {
   })
 }
 
-// Used to handle automatic remediation of log groups that do not have a retention set
+# Role used for auto-remediation to update log groups 
 resource "aws_iam_role" "config_remediation_role" {
   count = var.cloudwatch_log_retention_remediation ? 1 : 0
   name  = "AWSConfigRemediation-CloudWatchLogRetention"
@@ -49,9 +49,11 @@ resource "aws_iam_role_policy" "config_remediation_policy" {
   })
 }
 
+// Used to handle automatic remediation of log groups that do not have a retention set
 resource "aws_config_remediation_configuration" "cw_log_retention" {
-  count       = var.cloudwatch_log_retention_remediation ? 1 : 0
-  rule_name   = "cloudwatch-log-group-retention-check"
+  count            = var.cloudwatch_log_retention_remediation ? 1 : 0
+  config_rule_name = "cloudwatch-log-group-retention-check"
+
   target_type = "SSM_DOCUMENT"
   target_id   = "AWSConfigRemediation-SetCloudWatchLogGroupRetention"
 
@@ -65,8 +67,9 @@ resource "aws_config_remediation_configuration" "cw_log_retention" {
   }
 
   parameter {
-    name         = "AutomationAssumeRole"
-    static_value = "arn:aws:iam::${var.current_account_id}:role/AWSConfigRemediation-CloudWatchLogRetention"
+    name = "AutomationAssumeRole"
+    # static_value = "arn:aws:iam::${var.current_account_id}:role/AWSConfigRemediation-CloudWatchLogRetention"
+    static_value = aws_iam_role.config_role[0].arn
   }
 
   resource_type = "AWS::Logs::LogGroup"
