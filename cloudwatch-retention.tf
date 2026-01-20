@@ -24,7 +24,7 @@ resource "aws_iam_role_policy" "config_cw_retention_lambda_policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["logs:DescribeLogGroups"]
+        Action   = ["logs:DescribeLogGroups", "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = "*"
       },
       {
