@@ -30,6 +30,12 @@ variable "create_sns_topic" {
   default     = true
 }
 
+variable "aws_config_notifications_email" {
+  description = "Email address to subscribe to the SNS topic for Config notifications"
+  type        = string
+  default     = null
+}
+
 # S3
 variable "aws_config_central_bucket_name" {
   description = "Name of the S3 bucket that will store AWS Config aggregation history files (has to be a unique name globally in AWS)"

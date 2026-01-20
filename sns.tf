@@ -4,3 +4,11 @@ resource "aws_sns_topic" "config_notifications" {
 
   tags = var.tags
 }
+
+resource "aws_sns_topic_subscription" "email" {
+  count     = var.is_security_account && var.create_sns_topic && var.sns_topic_arn == null && var.sns_topic_email_endpoint != null ? 1 : 0
+  topic_arn = aws_sns_topic.config_notifications[0].arn
+  protocol  = "email"
+  endpoint  = var.aws_config_notifications_email
+}
+
