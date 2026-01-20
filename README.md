@@ -25,7 +25,8 @@ No modules.
 | [aws_config_configuration_aggregator.org](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/config_configuration_aggregator) | resource |
 | [aws_config_configuration_recorder.member](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/config_configuration_recorder) | resource |
 | [aws_config_configuration_recorder_status.member](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/config_configuration_recorder_status) | resource |
-| [aws_config_delivery_channel.member](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/config_delivery_channel) | resource |
+| [aws_config_delivery_channel.member_acc](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/config_delivery_channel) | resource |
+| [aws_config_delivery_channel.security_acc](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/config_delivery_channel) | resource |
 | [aws_iam_role.aggregator_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.config_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.aggregator_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
@@ -34,6 +35,7 @@ No modules.
 | [aws_s3_bucket_lifecycle_configuration.aws_config_aggregation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_lifecycle_configuration) | resource |
 | [aws_s3_bucket_policy.aws_config_aggregation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy) | resource |
 | [aws_sns_topic.config_notifications](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/sns_topic) | resource |
+| [aws_sns_topic_subscription.email](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/sns_topic_subscription) | resource |
 | [aws_iam_policy_document.aggregator_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.config_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 
@@ -42,6 +44,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_aws_config_central_bucket_name"></a> [aws\_config\_central\_bucket\_name](#input\_aws\_config\_central\_bucket\_name) | Name of the S3 bucket that will store AWS Config aggregation history files (has to be a unique name globally in AWS) | `string` | `"itgix-landing-zone-aws-config-history"` | no |
+| <a name="input_aws_config_notifications_email"></a> [aws\_config\_notifications\_email](#input\_aws\_config\_notifications\_email) | Email address to subscribe to the SNS topic for Config notifications | `string` | `null` | no |
 | <a name="input_create_sns_topic"></a> [create\_sns\_topic](#input\_create\_sns\_topic) | Whether to create a new SNS topic for Config notifications | `bool` | `true` | no |
 | <a name="input_is_logging_account"></a> [is\_logging\_account](#input\_is\_logging\_account) | Set to true in central logging account (creates S3 buckets) | `bool` | `false` | no |
 | <a name="input_is_security_account"></a> [is\_security\_account](#input\_is\_security\_account) | Set to true when running in the Security/Delegated Admin Account | `bool` | `false` | no |
