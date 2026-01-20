@@ -55,6 +55,16 @@ variable "current_account_id" {
   description = "Account ID of the current account where the module is called from, used to configure auto-remediation of log groups in each account"
 }
 
+variable "security_account_id" {
+  type        = string
+  description = "Account ID of the security account where the organization Config rule is deployed"
+}
+
+variable "region" {
+  type        = string
+  description = "AWS region where the resources are deployed"
+}
+
 variable "cloudwatch_logs_default_retention" {
   type        = string
   default     = 365 // days

@@ -76,7 +76,7 @@ resource "aws_config_organization_custom_rule" "cw_log_retention_check" {
   description = "Ensure CloudWatch Log Groups do not use Never Expire retention"
 }
 
-# Role used for auto-remediation to update log groups 
+# Role used for auto-remediation to update log groups
 resource "aws_iam_role" "config_remediation_role" {
   count = var.cloudwatch_log_retention_remediation ? 1 : 0
   name  = "AWSConfigRemediation-CloudWatchLogRetention"
@@ -88,6 +88,113 @@ resource "aws_iam_role" "config_remediation_role" {
         Effect    = "Allow"
         Principal = { Service = "ssm.amazonaws.com" }
         Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# Role for Config to access logs in member accounts
+resource "aws_iam_role" "config_cross_account_logs_access" {
+  count = !var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+  name  = "Config-CrossAccount-LogsAccess"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${var.security_account_id}:root" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "config_cross_account_logs_policy" {
+  count = !var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+  role  = aws_iam_role.config_cross_account_logs_access[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogGroups"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# EventBridge rule to trigger remediation on NON_COMPLIANT evaluations
+resource "aws_cloudwatch_event_rule" "config_cw_remediation" {
+  count = !var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+  name  = "config-cw-log-retention-remediation"
+
+  event_pattern = jsonencode({
+    source      = ["aws.config"]
+    detail-type = ["Config Rules Compliance Change"]
+    detail = {
+      configRuleName = ["cloudwatch-log-group-retention-check"]
+      newEvaluationResult = {
+        complianceType = ["NON_COMPLIANT"]
+      }
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "config_cw_remediation_target" {
+  count     = !var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+  rule      = aws_cloudwatch_event_rule.config_cw_remediation[0].name
+  target_id = "SSMRemediation"
+
+  arn = "arn:aws:ssm:${var.region}:${var.current_account_id}:automation-definition/${aws_ssm_document.set_cloudwatch_log_retention[0].name}:$DEFAULT"
+
+  role_arn = aws_iam_role.eventbridge_invoke_ssm[0].arn
+
+  input_transformer {
+    input_paths = {
+      resourceId = "$.detail.resourceId"
+    }
+    input_template = jsonencode({
+      DocumentName = aws_ssm_document.set_cloudwatch_log_retention[0].name
+      Parameters = {
+        LogGroupName         = ["<resourceId>"]
+        RetentionInDays      = [tostring(var.cloudwatch_logs_default_retention)]
+        AutomationAssumeRole = ["arn:aws:iam::${var.current_account_id}:role/AWSConfigRemediation-CloudWatchLogRetention"]
+      }
+    })
+  }
+}
+
+# IAM role for EventBridge to invoke SSM
+resource "aws_iam_role" "eventbridge_invoke_ssm" {
+  count = !var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+  name  = "EventBridge-Invoke-SSM-Remediation"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "events.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "eventbridge_invoke_ssm_policy" {
+  count = !var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
+  role  = aws_iam_role.eventbridge_invoke_ssm[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ssm:StartAutomationExecution"]
+        Resource = "*"
       }
     ]
   })
@@ -148,32 +255,4 @@ resource "aws_ssm_document" "set_cloudwatch_log_retention" {
   })
 }
 
-// Add AWS Config automatic remediation of log groups that do not have a retention set
-resource "aws_config_remediation_configuration" "cw_log_retention" {
-  count            = !var.is_security_account && var.cloudwatch_log_retention_remediation ? 1 : 0
-  config_rule_name = "cloudwatch-log-group-retention-check"
 
-  target_type = "SSM_DOCUMENT"
-  target_id   = aws_ssm_document.set_cloudwatch_log_retention[0].name
-
-  automatic                  = true
-  maximum_automatic_attempts = 3
-  retry_attempt_seconds      = 60
-
-  parameter {
-    name         = "RetentionInDays"
-    static_value = var.cloudwatch_logs_default_retention // in days
-  }
-
-  parameter {
-    name           = "LogGroupName"
-    resource_value = "RESOURCE_ID"
-  }
-
-  parameter {
-    name         = "AutomationAssumeRole"
-    static_value = "arn:aws:iam::${var.current_account_id}:role/AWSConfigRemediation-CloudWatchLogRetention"
-  }
-
-  resource_type = "AWS::Logs::LogGroup"
-}
