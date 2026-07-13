@@ -42,3 +42,46 @@ variable "aws_config_central_bucket_name" {
   type        = string
   default     = "itgix-landing-zone-aws-config-history"
 }
+
+# Conformance Pack
+variable "create_conformance_pack" {
+  description = "Whether to create an AWS Config organization conformance pack in the security account"
+  type        = bool
+  default     = false
+}
+
+variable "conformance_pack_name" {
+  description = "Name of the AWS Config organization conformance pack"
+  type        = string
+  default     = "itgix-landing-zone-opinionated-managed-rules"
+}
+
+variable "use_default_conformance_pack_managed_rules" {
+  description = "Whether to include the module's built-in default managed rules in the conformance pack"
+  type        = bool
+  default     = true
+}
+
+variable "conformance_pack_managed_rule_identifiers" {
+  description = "Additional AWS Config managed rule identifiers to include in the conformance pack"
+  type        = list(string)
+  default     = []
+}
+
+variable "conformance_pack_rule_input_parameters" {
+  description = "Input parameters for managed rules keyed by AWS Config managed rule identifier"
+  type        = map(map(string))
+  default     = {}
+}
+
+variable "conformance_pack_rule_maximum_execution_frequency" {
+  description = "Maximum execution frequency keyed by AWS Config managed rule identifier"
+  type        = map(string)
+  default     = {}
+}
+
+variable "conformance_pack_excluded_accounts" {
+  description = "List of AWS account IDs to exclude from the organization conformance pack"
+  type        = list(string)
+  default     = []
+}

@@ -14,3 +14,13 @@ output "config_sns_topic_arn" {
   description = "ARN of the SNS topic used for Config notifications"
   value       = var.sns_topic_arn != null ? var.sns_topic_arn : (var.is_security_account && var.create_sns_topic ? aws_sns_topic.config_notifications[0].arn : null)
 }
+
+output "conformance_pack_name_out" {
+  description = "Name of the AWS Config organization conformance pack"
+  value       = try(aws_config_organization_conformance_pack.this[0].name, null)
+}
+
+output "conformance_pack_id_out" {
+  description = "ID of the AWS Config organization conformance pack"
+  value       = try(aws_config_organization_conformance_pack.this[0].id, null)
+}
